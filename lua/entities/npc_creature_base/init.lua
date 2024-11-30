@@ -46,7 +46,7 @@ ENT.nHostileOnDamage = 3
 ----
 
 ENT.fHearDistance = 350
-ENT.fViewDistance = 20000
+ENT.fViewDistance = 6000
 ENT.fViewAngle = 90
 
 ENT.iBloodType = BLOOD_COLOR_RED
@@ -292,7 +292,6 @@ function ENT:Initialize()
 		self:AddEFlags(EFL_NO_DISSOLVE)
 	end
 	self.tblIncomingGrenades = {}
-	self.IsSLVBaseNPC = true
 
 	if(self.UseActivityTranslator) then
 		local wep = self:Give("ai_translator")
@@ -311,6 +310,11 @@ function ENT:Initialize()
 	self:SetupSLVFactions()
 	self:InitLimbs()
 	self:InitBodyCaps()
+	timer.Simple(0,function() self:SetViewDistance(self.fViewDistance) end)
+	local collisionMin, collisionMax = self:GetCollisionBounds()
+	if self:GetSurroundingBounds() == self:WorldSpaceAABB() then
+		self:SetSurroundingBounds(Vector(collisionMin.x * 2, collisionMin.y * 2, collisionMin.z * 1.2), Vector(collisionMax.x * 2, collisionMax.y * 2, collisionMax.z * 1.2))
+	end
 	self.enttbltemp = {}
 	self.bPossessed = false
 	self.m_bInitialized = true
@@ -1684,7 +1688,7 @@ function ENT:SelectSchedule(iNPCState)
 			return
 		end
 	end
-	if(self:RunDefaultBehavior()) then return end
+	-- if(self:RunDefaultBehavior()) then return end // Note, for some reason this makes them unable to spot most enemies...?
 	if(CurTime() >= self.m_nextEnemySearch) then
 		self:UpdateEnemies()
 		if(IsValid(self.entEnemy)) then self.m_nextEnemySearch = CurTime() +1
@@ -1882,12 +1886,14 @@ function ENT:SetBehavior(iBehavior,tArg,tArgb)
 end
 
 function ENT:GetViewDistance()
-	return (self.iBehavior == 1 || self.iBehavior == 2) && (self.fFollowAttackDistance || self:GetFollowDistance() -50) || self.fViewDistance
+	return (self.iBehavior == 1 || self.iBehavior == 2) && (self.fFollowAttackDistance || self:GetFollowDistance() -50) || self:GetMaxLookDistance()
+	-- return (self.iBehavior == 1 || self.iBehavior == 2) && (self.fFollowAttackDistance || self:GetFollowDistance() -50) || self.fViewDistance
 end
 
 function ENT:GetSearchDistance() return self.fSearchDistance || self:GetViewDistance() end
 
-function ENT:SetViewDistance(dist) self.fViewDistance = dist end
+function ENT:SetViewDistance(dist) self:SetMaxLookDistance(dist) self.fViewDistance = dist end
+-- function ENT:SetViewDistance(dist) self.fViewDistance = dist end
 
 function ENT:GetFollowDistance()
 	return self.fFollowDistance
@@ -1970,13 +1976,16 @@ end
 
 function ENT:GetEnemies(ang)
 	local tbEnts
-	if(self.bIgnoreNPCs) then tbEnts = {}
-	else tbEnts = ents.GetNPCs() end
+	if(self.bIgnoreNPCs) then
+		tbEnts = {}
+	else
+		tbEnts = ents.GetNPCs()
+	end
 	local bIgnorePlayers = tobool(GetConVarNumber("ai_ignoreplayers")) || self.bIgnorePlayers
 	if(!bIgnorePlayers) then table.Add(tbEnts,player.GetAll()) end
 	local tbEnemies = {}
 	local posSelf = self:GetPos()
-	local viewDist = self:GetSearchDistance()
+	local viewDist = self:GetViewDistance()
 	for _, ent in ipairs(tbEnts) do
 		if(ent != self && ent:Alive() && !ent:GetNoTarget() && (self:GetAIType() != AI_TYPE_WATER || ent:WaterLevel() > 1) && !ent.bSelfDestruct) then
 			local disp = self:Disposition(ent)
@@ -2463,7 +2472,7 @@ function ENT:StopSoundPatch(sSound)
 end
 
 umsg.PoolString("slv_create_soundevent")
-function ENT:PlaySoundEvent(ev)
+function ENT:slvPlaySoundEvent(ev)
 	umsg.Start("slv_create_soundevent")
 		umsg.Vector(self:GetCenter())
 		umsg.Char(ev)
@@ -4019,7 +4028,7 @@ function ENT:GetAttackSpread(Weapon, Target)
 end
 
 util.AddNetworkString("slv_npc_soundtrack")
-function ENT:PlaySoundtrack()
+function ENT:slvPlaySoundtrack()
 	net.Start("slv_npc_soundtrack")
 		net.WriteEntity(self)
 	net.Broadcast()

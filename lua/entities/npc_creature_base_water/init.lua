@@ -65,7 +65,6 @@ function ENT:Initialize()
 		self:NoCollide("prop_combine_ball")
 	end
 	self.tblIncomingGrenades = {}
-	self.IsSLVBaseNPC = true
 	
 	if(self.UseActivityTranslator) then
 		local wep = self:Give("ai_translator")

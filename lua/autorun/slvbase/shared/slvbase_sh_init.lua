@@ -143,3 +143,50 @@ function util.RegisterNPCAnimation(ENT,name,anim,act)
 	end
 	ENT.CurAnimationID = ENT.CurAnimationID +1
 end
+
+properties.Add("slvbase.npc.possess",{
+	MenuLabel = "Possess NPC",
+	Order = 50000,
+	MenuIcon = "icon16/controller.png",
+	PrependSpacer = true,
+
+	Filter = function(self, ent, ply)
+		if (!IsValid(ent)) then return false end
+		if (ent:IsPlayer()) or !ent:IsNPC() then return false end
+		if ent.IsSLVBaseNPC != true then return false end
+		return true
+	end,
+	
+	Action = function(self, ent)
+		self:MsgStart()
+			net.WriteEntity(ent)
+		self:MsgEnd()
+	end,
+	
+	Receive = function(self, length, ply)
+		local ent = net.ReadEntity()
+		if (!self:Filter(ent, ply)) then return end
+		if !ply:Alive() then return end
+		if ply.bInPossessionMode then ply:ChatPrint("Can't possess "..ent:GetName().." because you are already possessing another NPC!") return end
+		if ent.bControlled != true then
+			if ent:Health() > 0 then
+				if !ent.bScripted || ent.DontPossess then
+					ply:ChatPrint("You can't possess "..ent:GetName().."!")
+					return
+				elseif ent.bControlled or ent:SLV_IsPossesed() then
+					ply:ChatPrint("You can't possess "..ent:GetName()..", it's being possessed by someone else!")
+					return
+				end
+				local entPossession = ents.Create("obj_possession_manager")
+				entPossession:SetPossessor(ply)
+				entPossession:SetTarget(ent)
+				entPossession:Spawn()
+				entPossession:StartPossession()
+			else
+				ply:ChatPrint("Can't possess "..ent:GetName().." its health is 0 or below.")
+			end
+		else
+			ply:ChatPrint("Can't possess "..ent:GetName().." it's already being controlled.")
+		end
+	end
+})

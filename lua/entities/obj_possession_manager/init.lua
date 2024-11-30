@@ -96,13 +96,22 @@ function ENT:EndPossession()
 		
 		self.entPossessor:SetMoveType(MOVETYPE_OBSERVER)
 		
-		local pos = self.entPossessor:GetPos()
+		local pos,ang = self.entPossessor:GetPos(), self.entPossessor:GetAngles()
 		self.entPossessor:KillSilent()
 		self.entPossessor:Spawn()
 		if IsValid(self.entTarget) then
 			pos = self.entTarget:GetPos() +Vector(0,0,self.entTarget:OBBMaxs().z +20)
+			ang = self.entTarget:GetAngles()
+		else
+			local tr = util.TraceHull({
+				start = pos,
+				endpos = pos -Vector(0,0,512),
+				filter = self.entPossessor
+			})
+			if tr.Hit then pos = tr.HitPos end
 		end
 		self.entPossessor:SetPos(pos)
+		self.entPossessor:SetAngles(ang)
 		for k, v in pairs(self.tblPlayer["Weapons"]) do
 			self.entPossessor:Give(v)
 		end

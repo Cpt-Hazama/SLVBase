@@ -10,6 +10,7 @@ ENT.Instructions	= ""
 
 ENT.Spawnable = false
 ENT.AdminSpawnable = false
+ENT.IsSLVBaseNPC = true
 
 ENT.AutomaticFrameAdvance = false
 
